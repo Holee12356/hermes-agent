@@ -23,6 +23,7 @@ import {
   $gatewayState,
   $selectedStoredSessionId,
   $sessions,
+  sessionMatchesStoredId,
   sessionPinId
 } from '@/store/session'
 
@@ -72,7 +73,7 @@ function SessionTitleDropdown({
   const activeSessionId = useStore($activeSessionId)
 
   const stored =
-    sessions.find(s => s.id === selectedStoredSessionId || s._lineage_root_id === selectedStoredSessionId) ?? null
+    (selectedStoredSessionId && sessions.find(s => sessionMatchesStoredId(s, selectedStoredSessionId))) || null
 
   const title = stored ? storedSessionTitle(stored) : 'New session'
 

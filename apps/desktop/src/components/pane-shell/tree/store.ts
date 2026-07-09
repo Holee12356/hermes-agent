@@ -9,6 +9,7 @@ import { atom } from 'nanostores'
 import { SIDEBAR_COLLAPSE_MEDIA_QUERY } from '@/app/layout-constants'
 import { setPluginEnabled } from '@/contrib/plugins-store'
 import { registry } from '@/contrib/registry'
+import { readJson, readKey, writeJson, writeKey } from '@/lib/storage'
 import { notify } from '@/store/notifications'
 import { clearAllPaneSizeOverrides } from '@/store/panes'
 
@@ -38,50 +39,20 @@ import {
 // assignment (chat could land in a corner cell). Retire them wholesale.
 const STORAGE_KEY = 'hermes.desktop.layoutTree.v2'
 
-try {
-  window.localStorage.removeItem('hermes.desktop.layoutTree.v1')
-} catch {
-  // Nonfatal.
-}
+writeKey('hermes.desktop.layoutTree.v1', null)
 
 let defaultTree: LayoutNode | null = null
 
 function loadPersisted(): LayoutNode | null {
-  if (typeof window === 'undefined') {
-    return null
-  }
+  const parsed = readJson<unknown>(STORAGE_KEY)
 
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-
-    if (!raw) {
-      return null
-    }
-
-    const parsed = JSON.parse(raw) as unknown
-
-    // Canonicalize on load: strips stale attributes older code persisted
-    // (e.g. explicit headerHidden on lone-pane zones) and re-flattens.
-    return isLayoutNode(parsed) ? normalize(parsed) : null
-  } catch {
-    return null
-  }
+  // Canonicalize on load: strips stale attributes older code persisted
+  // (e.g. explicit headerHidden on lone-pane zones) and re-flattens.
+  return isLayoutNode(parsed) ? normalize(parsed) : null
 }
 
 function persist(tree: LayoutNode | null) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  try {
-    if (tree) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tree))
-    } else {
-      window.localStorage.removeItem(STORAGE_KEY)
-    }
-  } catch {
-    // Storage failures are nonfatal.
-  }
+  writeJson(STORAGE_KEY, tree)
 }
 
 /** The live tree (null until a default is declared). */
@@ -91,20 +62,11 @@ export const $layoutTree = atom<LayoutNode | null>(loadPersisted())
  * Which layout preset the current tree came from; `'custom'` after the user
  * rearranges anything. Drives the picker's active highlight.
  */
-export const $activePresetId = atom<string>(
-  typeof window === 'undefined'
-    ? 'default'
-    : (window.localStorage.getItem('hermes.desktop.layoutPreset.active') ?? 'default')
-)
+export const $activePresetId = atom<string>(readKey('hermes.desktop.layoutPreset.active') ?? 'default')
 
 export function markActivePreset(id: string) {
   $activePresetId.set(id)
-
-  try {
-    window.localStorage.setItem('hermes.desktop.layoutPreset.active', id)
-  } catch {
-    // Nonfatal.
-  }
+  writeKey('hermes.desktop.layoutPreset.active', id)
 }
 
 /** Pane id being dragged (tree drag session), null when idle. */
@@ -163,29 +125,14 @@ export function setTreePaneHidden(paneId: string, hidden: boolean) {
 const DISMISSED_KEY = 'hermes.desktop.dismissedPanes.v1'
 
 function loadDismissed(): ReadonlySet<string> {
-  try {
-    const raw = window.localStorage.getItem(DISMISSED_KEY)
-
-    return new Set(raw ? (JSON.parse(raw) as string[]) : [])
-  } catch {
-    return new Set()
-  }
+  return new Set(readJson<string[]>(DISMISSED_KEY) ?? [])
 }
 
 export const $dismissedPanes = atom<ReadonlySet<string>>(loadDismissed())
 
 function saveDismissed(next: ReadonlySet<string>) {
   $dismissedPanes.set(next)
-
-  try {
-    if (next.size === 0) {
-      window.localStorage.removeItem(DISMISSED_KEY)
-    } else {
-      window.localStorage.setItem(DISMISSED_KEY, JSON.stringify([...next]))
-    }
-  } catch {
-    // Nonfatal.
-  }
+  writeJson(DISMISSED_KEY, next.size === 0 ? null : [...next])
 }
 
 function setDismissed(paneId: string, dismissed: boolean) {

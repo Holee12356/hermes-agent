@@ -44,6 +44,7 @@ import {
   $resumeFailedSessionId,
   $selectedStoredSessionId,
   $sessions,
+  sessionMatchesStoredId,
   sessionPinId,
   setAwaitingResponse,
   setBusy,
@@ -108,10 +109,6 @@ const CronView = lazy(async () => ({ default: (await import('../cron')).CronView
 const ProfilesView = lazy(async () => ({ default: (await import('../profiles')).ProfilesView }))
 const SettingsView = lazy(async () => ({ default: (await import('../settings')).SettingsView }))
 const StarmapView = lazy(async () => ({ default: (await import('../starmap')).StarmapView }))
-
-function sessionMatchesStoredId(session: { id: string; _lineage_root_id?: null | string }, id: string): boolean {
-  return session.id === id || session._lineage_root_id === id
-}
 
 // Surfaces (the five wired panes), the render context + WiredPane, and the
 // WiringActions/WiringApi contracts all live in sibling modules — this file is
